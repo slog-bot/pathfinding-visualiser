@@ -23,20 +23,121 @@ let state = createInitialState(GRID_SIZE, GRID_SIZE);
 // edges" to block each active edge.
 let randomBlockChance = 0.3;
 
+// Static help content. It never changes, so it lives outside the render loop.
+const INSTRUCTIONS_HTML = `
+  <section class="instr-section">
+    <h4>&#127919; Purpose</h4>
+    <ul>
+      <li>A prototype for designing and testing the <strong>progression graph</strong> of a biome or area.</li>
+      <li>Each cell is an <strong>arena, room, encounter or instance</strong> &mdash; not an individual combat tile.</li>
+      <li>The graph is the underlying data structure modelling progression; it is not necessarily what the player sees in-game.</li>
+      <li>Use it to experiment with graph generation, movement rules and pathfinding.</li>
+    </ul>
+  </section>
+
+  <section class="instr-section">
+    <h4>&#9999;&#65039; Editing modes</h4>
+    <ul>
+      <li><strong>Toggle Active</strong> &mdash; click cells to enable/disable them. Only active cells exist in the graph.</li>
+      <li><strong>Set Start</strong> &mdash; choose the entry point into the biome.</li>
+      <li><strong>Set Goal</strong> &mdash; choose the destination/exit of the biome.</li>
+      <li><strong>Toggle Edge</strong> &mdash; click one active cell, then a <em>neighbouring</em> active cell to create/remove a normal connection. Blocked edges are routes that cannot be travelled.</li>
+      <li><strong>Toggle Teleport</strong> &mdash; click one active cell, then <em>any other</em> active cell. Teleports ignore adjacency and act as direct links. Matching colours/labels mark paired locations.</li>
+      <li><strong>Simulate</strong> &mdash; progress through the graph by clicking highlighted legal moves. After each move the previous location becomes visited and unavailable, legal moves are recalculated, and any move that would make the goal unreachable is prevented.</li>
+    </ul>
+  </section>
+
+  <section class="instr-section">
+    <h4>&#127922; Randomise edges</h4>
+    <ul>
+      <li>Randomly blocks normal neighbouring connections.</li>
+      <li>A layout is only accepted if a valid path still exists from start to goal.</li>
+      <li>Teleports are preserved.</li>
+    </ul>
+  </section>
+
+  <section class="instr-section">
+    <h4>&#127912; Colours &amp; indicators</h4>
+    <ul class="legend">
+      <li><span class="swatch" style="background:#1e293b;opacity:0.55"></span> Inactive cell</li>
+      <li><span class="swatch" style="background:#475569"></span> Active cell</li>
+      <li><span class="swatch" style="background:#22c55e"></span> Start (S)</li>
+      <li><span class="swatch" style="background:#ef4444"></span> Goal (G)</li>
+      <li><span class="swatch" style="background:#3b82f6"></span> Current location (@)</li>
+      <li><span class="swatch" style="background:#7c3aed"></span> Visited (unavailable)</li>
+      <li><span class="swatch" style="background:#facc15"></span> Legal next move</li>
+      <li><span class="swatch swatch-wall"></span> Blocked edge (thick orange wall between cells)</li>
+      <li><span class="swatch swatch-edgesel"></span> Toggle Edge: first cell picked (orange outline)</li>
+      <li><span class="swatch swatch-telsel"></span> Toggle Teleport: first cell picked (cyan dashed outline)</li>
+    </ul>
+    <p class="instr-note">
+      Teleport pairs share a colour shown as a <strong>T1 / T2 / &hellip;</strong> badge on both
+      cells and a dashed line linking them. Colours cycle through:
+    </p>
+    <div class="teleport-swatches">
+      <span class="tp" style="background:#a855f7">T1</span>
+      <span class="tp" style="background:#3b82f6">T2</span>
+      <span class="tp" style="background:#22c55e">T3</span>
+      <span class="tp" style="background:#f97316">T4</span>
+      <span class="tp" style="background:#ec4899">T5</span>
+      <span class="tp" style="background:#14b8a6">T6</span>
+      <span class="tp" style="background:#eab308">T7</span>
+      <span class="tp" style="background:#f43f5e">T8</span>
+    </div>
+  </section>
+
+  <section class="instr-section">
+    <h4>&#128190; Export / import</h4>
+    <ul>
+      <li>Export saves: graph size, active cells, blocked edges, teleports, start and goal.</li>
+      <li>Import restores a saved graph.</li>
+      <li>Visited cells are <em>not</em> exported &mdash; they belong to the simulation, not the graph.</li>
+    </ul>
+  </section>
+
+  <section class="instr-section">
+    <h4>&#129504; Algorithm</h4>
+    <ul>
+      <li>A move is permitted only if, after moving, the previous location becomes unavailable <em>and</em> the goal is still reachable (BFS).</li>
+      <li>With <strong>One-Step Lookahead</strong> on, moves that immediately force the player into a dead end are also prevented (unless the move lands on the goal).</li>
+    </ul>
+  </section>
+`;
+
 // --- DOM scaffold ---------------------------------------------------------
 const app = document.querySelector<HTMLDivElement>("#app")!;
 app.innerHTML = `
-  <header class="app-header">
-    <h1>Grid Pathfinding Visualiser</h1>
-    <p class="hint" id="hint"></p>
-    <p class="message" id="message"></p>
-  </header>
+  <div class="top-bar">
+    <header class="app-header">
+      <h1>Grid Pathfinding Visualiser</h1>
+      <p class="hint" id="hint"></p>
+      <p class="message" id="message"></p>
+    </header>
+    <aside class="instructions-panel" id="instructions">
+      <div class="instructions-header">
+        <h3>&#8505;&#65039; Instructions</h3>
+        <button type="button" id="instructions-toggle" aria-expanded="true">Hide</button>
+      </div>
+      <div class="instructions-body" id="instructions-body">${INSTRUCTIONS_HTML}</div>
+    </aside>
+  </div>
   <div id="controls" class="controls"></div>
   <main class="workspace">
     <div id="grid" class="grid"></div>
     <aside id="debug" class="debug-panel"></aside>
   </main>
 `;
+
+// --- Instructions collapse/expand (static, outside the render loop) --------
+const instructionsPanel =
+  document.querySelector<HTMLElement>("#instructions")!;
+const instructionsToggle =
+  document.querySelector<HTMLButtonElement>("#instructions-toggle")!;
+instructionsToggle.addEventListener("click", () => {
+  const collapsed = instructionsPanel.classList.toggle("collapsed");
+  instructionsToggle.textContent = collapsed ? "Show" : "Hide";
+  instructionsToggle.setAttribute("aria-expanded", String(!collapsed));
+});
 
 const controlsEl = document.querySelector<HTMLDivElement>("#controls")!;
 const gridEl = document.querySelector<HTMLDivElement>("#grid")!;
