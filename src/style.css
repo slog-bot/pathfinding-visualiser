@@ -1,0 +1,230 @@
+:root {
+  --cell-size: 44px;
+  --wall: #f97316;
+  --bg: #0f172a;
+  --panel: #1e293b;
+  --panel-border: #334155;
+  --text: #e2e8f0;
+  --muted: #94a3b8;
+  --inactive: #1e293b;
+  --active: #475569;
+  --start: #22c55e;
+  --goal: #ef4444;
+  --current: #3b82f6;
+  --visited: #7c3aed;
+  --allowed: #facc15;
+
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  color: var(--text);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  padding: 1.5rem;
+  background: var(--bg);
+  min-height: 100vh;
+}
+
+.app-header h1 {
+  margin: 0 0 0.25rem;
+  font-size: 1.4rem;
+}
+
+.hint {
+  margin: 0 0 1rem;
+  color: var(--muted);
+  font-size: 0.9rem;
+  min-height: 1.2em;
+}
+
+/* --- Controls ----------------------------------------------------------- */
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.25rem;
+  align-items: center;
+  padding: 0.75rem 1rem;
+  background: var(--panel);
+  border: 1px solid var(--panel-border);
+  border-radius: 10px;
+  margin-bottom: 1.25rem;
+}
+
+.control-group {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+
+.control-title {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--muted);
+  margin-right: 0.25rem;
+}
+
+button {
+  font: inherit;
+  font-size: 0.85rem;
+  padding: 0.4rem 0.7rem;
+  background: #334155;
+  color: var(--text);
+  border: 1px solid #475569;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+button:hover {
+  background: #475569;
+}
+
+button.active-mode {
+  background: var(--current);
+  border-color: var(--current);
+  color: #fff;
+}
+
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+/* --- Workspace ---------------------------------------------------------- */
+.workspace {
+  display: flex;
+  gap: 1.5rem;
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+
+.grid {
+  display: grid;
+  gap: 2px;
+  background: #020617;
+  padding: 2px;
+  border-radius: 6px;
+}
+
+/* --- Cells -------------------------------------------------------------- */
+.cell {
+  width: var(--cell-size);
+  height: var(--cell-size);
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 1rem;
+  cursor: pointer;
+  background: var(--inactive);
+  border: 1px solid #0f172a;
+  user-select: none;
+}
+
+.cell.inactive {
+  background: var(--inactive);
+  opacity: 0.55;
+}
+
+.cell.active {
+  background: var(--active);
+}
+
+.cell.allowed-next {
+  background: var(--allowed);
+  color: #1f2937;
+}
+
+.cell.visited {
+  background: var(--visited);
+  color: #fff;
+}
+
+.cell.start {
+  background: var(--start);
+  color: #052e16;
+}
+
+.cell.goal {
+  background: var(--goal);
+  color: #450a0a;
+}
+
+/* Current takes visual precedence; it sits on top of any other state. */
+.cell.current {
+  background: var(--current);
+  color: #fff;
+}
+
+.cell.edge-selected {
+  outline: 3px solid #f59e0b;
+  outline-offset: -3px;
+}
+
+.cell-label {
+  pointer-events: none;
+}
+
+/* --- Walls (blocked edges) --------------------------------------------- */
+.cell.wall-top {
+  border-top: 4px solid var(--wall);
+}
+.cell.wall-bottom {
+  border-bottom: 4px solid var(--wall);
+}
+.cell.wall-left {
+  border-left: 4px solid var(--wall);
+}
+.cell.wall-right {
+  border-right: 4px solid var(--wall);
+}
+
+/* --- Debug panel -------------------------------------------------------- */
+.debug-panel {
+  flex: 1;
+  min-width: 280px;
+  max-width: 520px;
+  background: var(--panel);
+  border: 1px solid var(--panel-border);
+  border-radius: 10px;
+  padding: 1rem 1.25rem;
+}
+
+.debug-panel h2 {
+  margin: 0 0 0.75rem;
+  font-size: 1rem;
+}
+
+.debug-row {
+  margin-bottom: 0.6rem;
+}
+
+.debug-key {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--muted);
+  margin-bottom: 0.15rem;
+}
+
+.debug-value {
+  margin: 0;
+  font-family: "SF Mono", "Cascadia Code", Consolas, monospace;
+  font-size: 0.8rem;
+  white-space: pre-wrap;
+  word-break: break-all;
+  background: #0f172a;
+  border: 1px solid var(--panel-border);
+  border-radius: 6px;
+  padding: 0.4rem 0.5rem;
+}
