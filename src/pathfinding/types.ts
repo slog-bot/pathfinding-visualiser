@@ -13,6 +13,7 @@ export type Mode =
   | "set-start"
   | "set-goal"
   | "toggle-edge"
+  | "toggle-teleport"
   | "simulate";
 
 export type PathGraphState = {
@@ -22,6 +23,9 @@ export type PathGraphState = {
   activeCells: Set<string>;
   // Walls between two neighbouring cells. Stored as normalised edge keys ("x1,y1|x2,y2").
   blockedEdges: Set<string>;
+  // Manual connections between any two active cells (not necessarily neighbours).
+  // Stored as normalised edge keys, the same format as blockedEdges.
+  teleportEdges: Set<string>;
   // Cells already stepped through during a simulation. Stored as cell keys.
   visitedCells: Set<string>;
   startCell: CellCoord | null;
@@ -30,6 +34,8 @@ export type PathGraphState = {
   currentCell: CellCoord | null;
   // First cell picked while building an edge in "toggle-edge" mode.
   selectedCellForEdge: CellCoord | null;
+  // First cell picked while building a teleport in "toggle-teleport" mode.
+  selectedCellForTeleport: CellCoord | null;
   mode: Mode;
   // When true, a move must also leave at least one onward legal move available
   // (unless the move lands on the goal). Blocks trap-entrance cells.
@@ -43,6 +49,7 @@ export type ExportedMap = {
   height: number;
   activeCells: string[];
   blockedEdges: string[];
+  teleportEdges: string[];
   startCell: CellCoord | null;
   goalCell: CellCoord | null;
 };

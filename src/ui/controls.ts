@@ -5,8 +5,11 @@ import type { ExportedMap, Mode, PathGraphState } from "../pathfinding/types";
 
 export type ControlsApi = {
   getState(): PathGraphState;
+  getBlockChance(): number;
   onSetMode(mode: Mode): void;
   onSetLookahead(enabled: boolean): void;
+  onSetBlockChance(chance: number): void;
+  onRandomiseEdges(): void;
   onResetSimulation(): void;
   onClearActive(): void;
   onActivateAll(): void;
@@ -19,6 +22,7 @@ const MODES: Array<{ mode: Mode; label: string }> = [
   { mode: "set-start", label: "Set start" },
   { mode: "set-goal", label: "Set goal" },
   { mode: "toggle-edge", label: "Toggle edge" },
+  { mode: "toggle-teleport", label: "Toggle teleport" },
   { mode: "simulate", label: "Simulate" },
 ];
 
@@ -30,6 +34,7 @@ function serializeMap(state: PathGraphState): ExportedMap {
     height: state.height,
     activeCells: [...state.activeCells].sort(),
     blockedEdges: [...state.blockedEdges].sort(),
+    teleportEdges: [...state.teleportEdges].sort(),
     startCell: state.startCell,
     goalCell: state.goalCell,
   };
@@ -52,6 +57,10 @@ function parseMap(raw: unknown): ExportedMap {
     height: obj.height,
     activeCells: obj.activeCells.map(String),
     blockedEdges: obj.blockedEdges.map(String),
+    // teleportEdges is optional for backwards compatibility with older maps.
+    teleportEdges: Array.isArray(obj.teleportEdges)
+      ? obj.teleportEdges.map(String)
+      : [],
     startCell: (obj.startCell as ExportedMap["startCell"]) ?? null,
     goalCell: (obj.goalCell as ExportedMap["goalCell"]) ?? null,
   };
@@ -116,6 +125,41 @@ export function renderControls(
   checkboxLabel.appendChild(document.createTextNode(" Use one-step lookahead"));
   lookaheadGroup.appendChild(checkboxLabel);
   container.appendChild(lookaheadGroup);
+
+  // --- Random edges -------------------------------------------------------
+  const randomGroup = document.createElement("div");
+  randomGroup.className = "control-group";
+
+  const sliderLabel = document.createElement("label");
+  sliderLabel.className = "slider-label";
+  sliderLabel.appendChild(
+    document.createTextNode("Random edge block chance")
+  );
+
+  const slider = document.createElement("input");
+  slider.type = "range";
+  slider.min = "0";
+  slider.max = "1";
+  slider.step = "0.05";
+  slider.value = String(api.getBlockChance());
+
+  const sliderValue = document.createElement("span");
+  sliderValue.className = "slider-value";
+  sliderValue.textContent = api.getBlockChance().toFixed(2);
+
+  slider.addEventListener("input", () => {
+    const chance = Number(slider.value);
+    sliderValue.textContent = chance.toFixed(2);
+    api.onSetBlockChance(chance);
+  });
+
+  sliderLabel.appendChild(slider);
+  sliderLabel.appendChild(sliderValue);
+  randomGroup.appendChild(sliderLabel);
+  randomGroup.appendChild(
+    makeButton("Randomise edges", () => api.onRandomiseEdges())
+  );
+  container.appendChild(randomGroup);
 
   // --- Actions ------------------------------------------------------------
   const actionGroup = document.createElement("div");

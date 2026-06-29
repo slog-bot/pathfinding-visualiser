@@ -2,13 +2,7 @@
 // simulation. This builds on top of pathExists and is kept DOM-free.
 
 import type { CellCoord, PathGraphState } from "./types";
-import {
-  areNeighbors,
-  cellKey,
-  coordEquals,
-  edgeKey,
-  orthogonalNeighbors,
-} from "./gridUtils";
+import { cellKey, coordEquals, getConnectedCells } from "./gridUtils";
 import { pathExists } from "./pathfinding";
 
 // Produce the hypothetical state that would result from moving the player from
@@ -27,9 +21,9 @@ function stateAfterMove(
 // The base movement rule, WITHOUT one-step lookahead.
 // A move from currentCell to `candidate` is legal when:
 //   - there is a current cell and a goal
-//   - candidate is an orthogonal neighbour of currentCell
-//   - candidate is active and not already visited
-//   - the edge between them is not blocked
+//   - candidate is connected to currentCell (an unblocked orthogonal neighbour
+//     OR a teleport partner); getConnectedCells also guarantees it is active
+//   - candidate is not already visited
 //   - after pretending the move happened (current -> visited, stand on
 //     candidate), the goal is still reachable from candidate.
 function canMoveBase(candidate: CellCoord, state: PathGraphState): boolean {
@@ -37,12 +31,10 @@ function canMoveBase(candidate: CellCoord, state: PathGraphState): boolean {
   const goal = state.goalCell;
   if (!current || !goal) return false;
 
-  if (!areNeighbors(current, candidate, state)) return false;
+  const connected = getConnectedCells(current, state);
+  if (!connected.some((c) => coordEquals(c, candidate))) return false;
 
-  const candidateKey = cellKey(candidate);
-  if (!state.activeCells.has(candidateKey)) return false;
-  if (state.visitedCells.has(candidateKey)) return false;
-  if (state.blockedEdges.has(edgeKey(current, candidate))) return false;
+  if (state.visitedCells.has(cellKey(candidate))) return false;
 
   // After the move, can we still reach the goal from the candidate cell?
   const simState = stateAfterMove(state, current, candidate);
@@ -66,18 +58,18 @@ export function canMoveTo(candidate: CellCoord, state: PathGraphState): boolean 
 
   // Is there at least one legal onward move from the candidate? We use the base
   // rule here (no recursive lookahead) to mean "at least one onward step that
-  // still preserves a path to the goal".
-  return orthogonalNeighbors(candidate, simState).some((next) =>
+  // still preserves a path to the goal". Onward moves include teleports.
+  return getConnectedCells(candidate, simState).some((next) =>
     canMoveBase(next, simState)
   );
 }
 
-// All currently allowed moves from the current cell. Used both for the
-// "allowed next move" highlight and to gate clicks during simulation, so the
-// visuals and the rules can never disagree.
+// All currently allowed moves from the current cell, including teleport
+// destinations. Used both for the "allowed next move" highlight and to gate
+// clicks during simulation, so the visuals and the rules can never disagree.
 export function getAllowedMoves(state: PathGraphState): CellCoord[] {
   if (!state.currentCell) return [];
-  return orthogonalNeighbors(state.currentCell, state).filter((n) =>
+  return getConnectedCells(state.currentCell, state).filter((n) =>
     canMoveTo(n, state)
   );
 }
